@@ -1,14 +1,21 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from sklearn.cluster import KMeans
+import random
 
-# Initialize data storage for simplicity
+# Initialize data storage
 if 'events' not in st.session_state:
     st.session_state.events = pd.DataFrame(columns=['Name', 'Date', 'Time', 'Interest', 'Description'])
 
-# Custom CSS for styling, including hover effect for buttons
+if 'user_interactions' not in st.session_state:
+    # Simulated user interactions for recommendation system
+    st.session_state.user_interactions = pd.DataFrame(columns=['User', 'Event', 'Interest'])
+
+# Custom CSS and JS for styling
 st.markdown("""
     <style>
+        /* Custom styling for the app */
         body {
             font-family: Arial, sans-serif;
         }
@@ -40,7 +47,7 @@ st.markdown("""
             font-size: 14px;
             color: #666666;
         }
-        /* Style the submit button with a blue to white hover effect */
+        /* Button hover effect */
         .stButton > button {
             background-color: #4A90E2;
             color: white;
@@ -52,15 +59,6 @@ st.markdown("""
             border: 1px solid #4A90E2;
         }
     </style>
-""", unsafe_allow_html=True)
-
-# Custom JavaScript for confirmation message on event creation
-st.markdown("""
-    <script>
-        function showConfirmation() {
-            alert('Event created successfully!');
-        }
-    </script>
 """, unsafe_allow_html=True)
 
 # Application title and description
@@ -112,15 +110,41 @@ with st.form("event_form"):
             "Description": [description]
         })
         st.session_state.events = pd.concat([st.session_state.events, new_event], ignore_index=True)
-        
-        # Display a JavaScript alert upon successful event creation
-        st.markdown('<script>showConfirmation()</script>', unsafe_allow_html=True)
+        st.success("Event created successfully!")
 
-# Display all events if any exist
+# Simulating user interactions with a function
+def simulate_user_interaction(user, event, interest):
+    new_interaction = pd.DataFrame({
+        "User": [user],
+        "Event": [event],
+        "Interest": [interest]
+    })
+    st.session_state.user_interactions = pd.concat([st.session_state.user_interactions, new_interaction], ignore_index=True)
+
+# Generate recommendations using clustering
+def recommend_events(user_interest):
+    if not st.session_state.user_interactions.empty:
+        # Encoding interests for clustering
+        interaction_data = st.session_state.user_interactions['Interest'].astype('category').cat.codes
+        kmeans = KMeans(n_clusters=min(len(interests), len(st.session_state.user_interactions)), random_state=0)
+        clusters = kmeans.fit_predict(interaction_data.values.reshape(-1, 1))
+        st.session_state.user_interactions['Cluster'] = clusters
+
+        # Recommend events based on user's interest cluster
+        user_cluster = kmeans.predict([[user_interest]])
+        recommended_events = st.session_state.events[st.session_state.events['Interest'].astype('category').cat.codes == user_cluster[0]]
+        return recommended_events
+    return pd.DataFrame()
+
+# User Recommendation Section
 st.write("---")
-st.markdown('<div class="section-title">All Events</div>', unsafe_allow_html=True)
-if not st.session_state.events.empty:
-    for _, event in st.session_state.events.iterrows():
+st.markdown('<div class="section-title">Recommended Events For You</div>', unsafe_allow_html=True)
+
+user_interest = random.choice(interests)  # Simulating user interest input
+recommended_events = recommend_events(user_interest)
+
+if not recommended_events.empty:
+    for _, event in recommended_events.iterrows():
         st.markdown(f"""
             <div class="event-card">
                 <div class="event-title">{event['Name']}</div>
@@ -130,4 +154,4 @@ if not st.session_state.events.empty:
             </div>
         """, unsafe_allow_html=True)
 else:
-    st.write("No events created yet.")
+    st.write("No recommendations available.")
