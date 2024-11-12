@@ -8,61 +8,46 @@ import random
 if 'events' not in st.session_state:
     st.session_state.events = pd.DataFrame(columns=['Name', 'Date', 'Time', 'Interest', 'Description'])
 
-if 'user_interactions' not in st.session_state:
-    # Simulated user interactions for recommendation system
-    st.session_state.user_interactions = pd.DataFrame(columns=['User', 'Event', 'Interest'])
-
-# Custom CSS and JS for styling
+# Custom CSS and JavaScript for the big red button
 st.markdown("""
     <style>
-        /* Custom styling for the app */
-        body {
-            font-family: Arial, sans-serif;
-        }
-        .title {
-            font-size: 32px;
-            color: #4A90E2;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .section-title {
-            font-size: 24px;
-            color: #333333;
-            margin-top: 40px;
-        }
-        .event-card {
-            border: 1px solid #E0E0E0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-            background-color: #F9F9F9;
-        }
-        .event-title {
-            font-weight: bold;
-            font-size: 18px;
-            color: #333333;
-        }
-        .event-description {
-            font-size: 14px;
-            color: #666666;
-        }
-        /* Button hover effect */
-        .stButton > button {
-            background-color: #4A90E2;
+        /* Styling for the big red button */
+        .big-red-button {
+            background-color: #FF4C4C;
             color: white;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            width: 100px;
+            height: 100px;
+            border: none;
+            border-radius: 50%;
+            font-size: 40px;
+            text-align: center;
+            line-height: 1.5;
+            cursor: pointer;
+            transition: transform 0.2s ease;
         }
-        .stButton > button:hover {
-            background-color: white;
-            color: #4A90E2;
-            border: 1px solid #4A90E2;
+        .big-red-button:hover {
+            transform: scale(1.1);
+        }
+        .big-red-button:focus {
+            outline: none;
         }
     </style>
+    <script>
+        function scrollToCreateEvent() {
+            document.getElementById("create-event").scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+""", unsafe_allow_html=True)
+
+# Big red button with a cross in the middle
+st.markdown("""
+    <div style="display: flex; justify-content: center; margin: 20px;">
+        <button class="big-red-button" onclick="scrollToCreateEvent()">+</button>
+    </div>
 """, unsafe_allow_html=True)
 
 # Application title and description
-st.markdown('<div class="title">Bentley Social Circles</div>', unsafe_allow_html=True)
+st.title("Bentley Social Circles")
 st.write("Connect with the Bentley community by joining or creating meet-ups based on shared interests.")
 
 # Sidebar: User interests selection
@@ -71,26 +56,24 @@ interests = ["Book Club", "Yoga", "Study Group", "Music", "Cooking", "Fitness", 
 selected_interests = st.sidebar.multiselect("Select interests to find matching events:", interests)
 
 # Display relevant events
-st.markdown('<div class="section-title">Available Events</div>', unsafe_allow_html=True)
+st.header("Available Events")
 if selected_interests:
     filtered_events = st.session_state.events[st.session_state.events['Interest'].isin(selected_interests)]
     if not filtered_events.empty:
         for _, event in filtered_events.iterrows():
-            st.markdown(f"""
-                <div class="event-card">
-                    <div class="event-title">{event['Name']}</div>
-                    <div><strong>Date:</strong> {event['Date']}</div>
-                    <div><strong>Time:</strong> {event['Time']}</div>
-                    <div class="event-description">{event['Description']}</div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.write(f"### {event['Name']}")
+            st.write(f"**Date**: {event['Date']}")
+            st.write(f"**Time**: {event['Time']}")
+            st.write(f"**Description**: {event['Description']}")
+            st.write("---")
     else:
         st.write("No events found for the selected interests.")
 else:
     st.write("Please select an interest to view available events.")
 
-# Section: Create an Event
-st.markdown('<div class="section-title">Create a New Event</div>', unsafe_allow_html=True)
+# Create Event Section with the ID for scrolling
+st.header("Create a New Event")
+st.markdown('<div id="create-event"></div>', unsafe_allow_html=True)
 
 with st.form("event_form"):
     name = st.text_input("Event Name")
@@ -111,47 +94,3 @@ with st.form("event_form"):
         })
         st.session_state.events = pd.concat([st.session_state.events, new_event], ignore_index=True)
         st.success("Event created successfully!")
-
-# Simulating user interactions with a function
-def simulate_user_interaction(user, event, interest):
-    new_interaction = pd.DataFrame({
-        "User": [user],
-        "Event": [event],
-        "Interest": [interest]
-    })
-    st.session_state.user_interactions = pd.concat([st.session_state.user_interactions, new_interaction], ignore_index=True)
-
-# Generate recommendations using clustering
-def recommend_events(user_interest):
-    if not st.session_state.user_interactions.empty:
-        # Encoding interests for clustering
-        interaction_data = st.session_state.user_interactions['Interest'].astype('category').cat.codes
-        kmeans = KMeans(n_clusters=min(len(interests), len(st.session_state.user_interactions)), random_state=0)
-        clusters = kmeans.fit_predict(interaction_data.values.reshape(-1, 1))
-        st.session_state.user_interactions['Cluster'] = clusters
-
-        # Recommend events based on user's interest cluster
-        user_cluster = kmeans.predict([[user_interest]])
-        recommended_events = st.session_state.events[st.session_state.events['Interest'].astype('category').cat.codes == user_cluster[0]]
-        return recommended_events
-    return pd.DataFrame()
-
-# User Recommendation Section
-st.write("---")
-st.markdown('<div class="section-title">Recommended Events For You</div>', unsafe_allow_html=True)
-
-user_interest = random.choice(interests)  # Simulating user interest input
-recommended_events = recommend_events(user_interest)
-
-if not recommended_events.empty:
-    for _, event in recommended_events.iterrows():
-        st.markdown(f"""
-            <div class="event-card">
-                <div class="event-title">{event['Name']}</div>
-                <div><strong>Date:</strong> {event['Date']}</div>
-                <div><strong>Time:</strong> {event['Time']}</div>
-                <div class="event-description">{event['Description']}</div>
-            </div>
-        """, unsafe_allow_html=True)
-else:
-    st.write("No recommendations available.")
